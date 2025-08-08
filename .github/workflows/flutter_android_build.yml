@@ -1,35 +1,33 @@
-name: Build Flutter APK
+name: Flutter Android Build
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Flutter 3.22.8
-      run: |
-        git clone https://github.com/flutter/flutter.git --branch 3.22.8 --depth 1
-        echo "$PWD/flutter/bin" >> $GITHUB_PATH
-        flutter --version
+      - name: Set up Flutter 3.22.8
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.8'
+          channel: 'stable'
 
-    - name: Install dependencies
-      run: flutter pub get
+      - name: Install dependencies
+        run: flutter pub get
 
-    - name: Build release APK
-      run: |
-        export GRADLE_OPTS="-Xmx4g"
-        flutter build apk --release
+      - name: Build APK
+        run: flutter build apk --release
 
-    - name: Upload APK to GitHub Releases
-      uses: softprops/action-gh-release@v1
-      with:
-        files: build/app/outputs/flutter-apk/app-release.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload APK to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: build/app/outputs/flutter-apk/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
