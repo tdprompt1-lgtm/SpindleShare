@@ -1,44 +1,35 @@
-name: Build & Release APK
+name: Build Flutter APK
 
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    tags:
+      - 'v*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.16.0' # Sesuaikan dengan yang support Dart ^3.8.1
+    - name: Install Flutter 3.22.8
+      run: |
+        git clone https://github.com/flutter/flutter.git --branch 3.22.8 --depth 1
+        echo "$PWD/flutter/bin" >> $GITHUB_PATH
+        flutter --version
 
-      - name: Install dependencies
-        run: flutter pub get
+    - name: Install dependencies
+      run: flutter pub get
 
-      - name: Build APK
-        run: |
-          export GRADLE_OPTS="-Xmx8g -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true"
-          flutter build apk --release --target-platform android-arm,android-arm64
+    - name: Build release APK
+      run: |
+        export GRADLE_OPTS="-Xmx4g"
+        flutter build apk --release
 
-      - name: Create Tag
-        run: |
-          TAG="v1.0.$(date +%Y%m%d%H%M)"
-          git tag $TAG
-          git push origin $TAG
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: build/app/outputs/flutter-apk/app-release.apk
-          tag_name: ${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Upload APK to GitHub Releases
+      uses: softprops/action-gh-release@v1
+      with:
+        files: build/app/outputs/flutter-apk/app-release.apk
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
