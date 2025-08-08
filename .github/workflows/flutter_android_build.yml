@@ -2,30 +2,28 @@ name: Build & Release Flutter APK
 
 on:
   push:
-    tags:
-      - 'v*.*.*' # Contoh: v1.0.00
+    branches:
+      - main
+       workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          flutter-version: 3.16.0
-          channel: stable
+          flutter-version: "3.19.3"
 
-      - name: Install dependencies
+      - name: Get dependencies
         run: flutter pub get
 
-      - name: Build release APK
+      - name: Build APK
         run: flutter build apk --release
 
-      - name: Upload APK to Release
+      - name: Upload APK to GitHub Releases
         uses: softprops/action-gh-release@v1
         with:
           files: build/app/outputs/flutter-apk/app-release.apk
