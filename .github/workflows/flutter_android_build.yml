@@ -19,20 +19,20 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.8' # versi stabil terbaru
+          flutter-version: '3.32.8'
           channel: stable
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build APK
+      - name: Build APK per ABI
         env:
           JAVA_TOOL_OPTIONS: "-Xmx4g"
           GRADLE_OPTS: "-Xmx4g"
-        run: flutter build apk --release --no-shrink
+        run: flutter build apk --release --split-per-abi --no-shrink
 
-      - name: Upload APK
+      - name: Upload All APKs
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: all-apk
+          path: build/app/outputs/flutter-apk/*.apk
