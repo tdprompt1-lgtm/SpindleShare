@@ -3,7 +3,7 @@ name: Build & Release Flutter APK
 on:
   push:
     tags:
-      - 'v*.*.*' # Contoh: v1.0.0
+      - 'v*.*.*' # Contoh: v1.0.00
 
 jobs:
   build:
