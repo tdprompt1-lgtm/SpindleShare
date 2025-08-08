@@ -28,7 +28,7 @@ jobs:
       - name: Build APK
         env:
           JAVA_TOOL_OPTIONS: "-Xmx2048m"
-          GRADLE_OPTS: "-Xmx2048m"
+          GRADLE_OPTS: "-Xmx4g"
         run: flutter build apk --release
 
       - name: Upload APK
