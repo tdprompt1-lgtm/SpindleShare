@@ -1,4 +1,4 @@
-name: Flutter Android Build
+name: Build & Release APK
 
 on:
   push:
@@ -11,38 +11,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.32.8'
-
-      - name: Cache Gradle
-        uses: actions/cache@v3
-        with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: ${{ runner.os }}-gradle
-
-      - name: Cache Flutter pub
-        uses: actions/cache@v3
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
-          restore-keys: ${{ runner.os }}-pub
+          flutter-version: '3.22.8' # Sesuaikan dengan yang support Dart ^3.8.1
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build APK
         run: |
-          export GRADLE_OPTS="-Xmx4g"
-          flutter build apk --release
+          export GRADLE_OPTS="-Xmx8g -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.configureondemand=true"
+          flutter build apk --release --target-platform android-arm,android-arm64
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - name: Create Tag
+        run: |
+          TAG="v1.0.$(date +%Y%m%d%H%M)"
+          git tag $TAG
+          git push origin $TAG
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: app-release.apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/app-release.apk
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
