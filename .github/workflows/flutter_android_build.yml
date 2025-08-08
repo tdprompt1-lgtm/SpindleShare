@@ -12,6 +12,15 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
+      - name: Read version from pubspec.yaml
+        id: version
+        run: echo "VERSION=$(grep '^version:' pubspec.yaml | cut -d ' ' -f2)" >> $GITHUB_ENV
+
+      - name: Create tag
+        run: |
+          git tag "v${{ env.VERSION }}"
+          git push origin "v${{ env.VERSION }}"
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
