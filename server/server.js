@@ -1,131 +1,58 @@
-
 const express = require('express');
 const bodyParser = require('body-parser');
-const cors = require('cors');
 const admin = require('firebase-admin');
-require('dotenv').config();
-
-try {
-  admin.initializeApp({
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET || undefined
-  });
-} catch (e) {
-  console.warn('Firebase admin initializeApp warning:', e.message || e);
-}
-
+const midtransClient = require('midtrans-client');
+admin.initializeApp();
 const db = admin.firestore();
-
 const app = express();
-app.use(cors());
 app.use(bodyParser.json());
 
-app.get('/', (req, res) => {
-  res.send({ ok: true, message: 'SpindleShare server (no-payment) running' });
-});
+const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || 'YOUR_SERVER_KEY';
+const MIDTRANS_CLIENT_KEY = process.env.MIDTRANS_CLIENT_KEY || 'YOUR_CLIENT_KEY';
+const isProduction = (process.env.NODE_ENV === 'production');
+const coreApi = new midtransClient.CoreApi({ isProduction, serverKey: MIDTRANS_SERVER_KEY, clientKey: MIDTRANS_CLIENT_KEY });
 
-// PRODUCTS
-app.get('/products', async (req, res) => {
+// create transaction
+app.post('/create-transaction', async (req, res) => {
   try {
-    const q = db.collection('products').orderBy('createdAt', 'desc');
-    const snap = await q.get();
-    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json(items);
+    const { orderId, amount, productTitle } = req.body;
+    if (!orderId || !amount) return res.status(400).json({ error: 'missing' });
+    const parameter = {
+      transaction_details: { order_id: orderId, gross_amount: parseFloat(amount) },
+      item_details: [{ id: orderId, price: parseFloat(amount), quantity: 1, name: productTitle || 'CNC Program' }],
+      credit_card: { secure: true }
+    };
+    const chargeResp = await coreApi.charge(parameter);
+    return res.json(chargeResp);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'failed' });
+    res.status(500).json({ error: 'server error' });
   }
 });
 
-app.get('/products/:id', async (req, res) => {
+// webhook receiver
+app.post('/payment-notify', async (req, res) => {
   try {
-    const doc = await db.collection('products').doc(req.params.id).get();
-    if (!doc.exists) return res.status(404).json({ error: 'not found' });
-    res.json({ id: doc.id, ...doc.data() });
+    const body = req.body;
+    const orderId = body.order_id;
+    const status = body.transaction_status;
+    if (!orderId) return res.status(400).send('no order id');
+    const orderRef = db.collection('orders').doc(orderId);
+    const doc = await orderRef.get();
+    if (!doc.exists) return res.status(404).send('order not found');
+    if (status === 'settlement' || status === 'capture') {
+      await orderRef.update({ status: 'PAID', paidAt: admin.firestore.FieldValue.serverTimestamp(), rawPayload: body });
+    } else if (status === 'cancel' || status === 'deny' || status === 'expire') {
+      await orderRef.update({ status: 'CANCELED', rawPayload: body });
+    } else {
+      await orderRef.update({ rawPayload: body });
+    }
+    res.sendStatus(200);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'failed' });
+    res.sendStatus(500);
   }
 });
 
-app.post('/products', async (req, res) => {
-  try {
-    const data = req.body;
-    data.createdAt = admin.firestore.FieldValue.serverTimestamp();
-    const ref = await db.collection('products').add(data);
-    res.json({ id: ref.id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'failed' });
-  }
-});
-
-// JOBS
-app.post('/jobs', async (req, res) => {
-  try {
-    const data = req.body;
-    data.status = data.status || 'OPEN';
-    data.createdAt = admin.firestore.FieldValue.serverTimestamp();
-    const ref = await db.collection('jobs').add(data);
-    res.json({ id: ref.id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'failed' });
-  }
-});
-
-app.get('/jobs', async (req, res) => {
-  try {
-    const snap = await db.collection('jobs').orderBy('createdAt','desc').get();
-    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    res.json(items);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'failed' });
-  }
-});
-
-// ORDERS (no payment)
-app.post('/orders', async (req, res) => {
-  try {
-    const data = req.body;
-    data.status = data.status || 'PENDING';
-    data.createdAt = admin.firestore.FieldValue.serverTimestamp();
-    const ref = await db.collection('orders').add(data);
-    res.json({ id: ref.id });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'failed' });
-  }
-});
-
-app.get('/orders/:id', async (req, res) => {
-  try {
-    const doc = await db.collection('orders').doc(req.params.id).get();
-    if (!doc.exists) return res.status(404).json({ error: 'not found' });
-    res.json({ id: doc.id, ...doc.data() });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'failed' });
-  }
-});
-
-// Generate signed URL for Firebase Storage file
-app.post('/generate-signed-url', async (req, res) => {
-  try {
-    const { filePath, expiresSeconds } = req.body;
-    if (!filePath) return res.status(400).json({ error: 'filePath required' });
-    const bucket = admin.storage().bucket();
-    const file = bucket.file(filePath);
-    const expires = Date.now() + ((expiresSeconds || 86400) * 1000);
-    const [url] = await file.getSignedUrl({ version: 'v4', action: 'read', expires });
-    res.json({ url, expiresAt: new Date(expires).toISOString() });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'failed', detail: err.message || err });
-  }
-});
-
-app.get('/health', (req, res) => res.send({ ok: true, time: new Date().toISOString() }));
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => console.log('Server running on', PORT));
