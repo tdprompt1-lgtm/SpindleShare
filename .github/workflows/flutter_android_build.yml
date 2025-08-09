@@ -13,14 +13,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: 'stable'
-      - run: flutter pub get
-      - run: flutter build appbundle --release
-      - run: ls -lah build/app/outputs/bundle/release/
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
