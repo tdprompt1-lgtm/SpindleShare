@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "338763939664",
+    "project_id": "spindleshare",
+    "storage_bucket": "spindleshare.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:338763939664:android:734c721b14c762135af655",
+        "android_client_info": {
+          "package_name": "com.myapp.spindleshare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABg1kW6vR1if61fruFZCTfI60-CRhRjM8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
